@@ -41,46 +41,13 @@ func (client *StravaClient) send(req *http.Request, err error) (*http.Response, 
 	return resp, nil
 }
 
-func newStravaLoginRequest() (*http.Request, error) {
-	req, err := http.NewRequest("GET", "https://www.strava.com/login", nil)
-	if err != nil {
-		return nil, err
-	}
+func (client *StravaClient) newProviderURLRequest() (*http.Request, error) {
+	auth, _ := url.JoinPath(client.target.String(), "auth")
+	req, err := http.NewRequest("GET", auth, nil)
 	setBrowserCookies(req)
-
-	return req, nil
-}
-
-func newStravaSessionRequest(email string, password string, token string) (*http.Request, error) {
-	data := url.Values{}
-	data.Add("utf8", "\u2713")
-	data.Add("authenticity_token", token)
-	data.Add("plan", "")
-	data.Add("email", email)
-	data.Add("password", password)
-	data.Add("remember_me", "on")
-
-	req, err := http.NewRequest("POST", "https://www.strava.com/session", strings.NewReader(data.Encode()))
-	if err != nil {
-		setBrowserCookies(req)
-	}
+	req.Header.Set("Content-Type", "text/html; charset=utf-8")
 
 	return req, err
-}
-
-func extractAuthenticityToken(resp *http.Response) (string, error) {
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("Failed to read body: %w", err)
-	}
-
-	expr, _ := regexp.Compile("name=\"authenticity_token\".*value=\"(.+?)\"")
-	matches := expr.FindStringSubmatch(string(body))
-	if len(matches) < 2 {
-		return "", errors.New("Token not found")
-	}
-
-	return matches[1], nil
 }
 
 func (client *StravaClient) Authenticate(email string, password string) error {
@@ -95,8 +62,7 @@ func (client *StravaClient) Authenticate(email string, password string) error {
 	if _, err = client.send(newStravaSessionRequest(email, password, token)); err != nil {
 		return fmt.Errorf("Could not send session request: %w", err)
 	}
-	auth, _ := url.JoinPath(client.target.String(), "auth")
-	if _, err := client.send(http.NewRequest("GET", auth, nil)); err != nil {
+	if _, err := client.send(client.newProviderURLRequest()); err != nil {
 		return fmt.Errorf("Could not send auth request: %w", err)
 	}
 	return nil
@@ -123,6 +89,50 @@ func (client *StravaClient) GetTarget() *url.URL {
 	return client.target
 }
 
+func newStravaLoginRequest() (*http.Request, error) {
+	req, err := http.NewRequest("GET", "https://www.strava.com/login", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "text/html; charset=utf-8")
+	setBrowserCookies(req)
+
+	return req, nil
+}
+
+func newStravaSessionRequest(email string, password string, token string) (*http.Request, error) {
+	data := url.Values{}
+	data.Add("utf8", "\u2713")
+	data.Add("authenticity_token", token)
+	data.Add("plan", "")
+	data.Add("email", email)
+	data.Add("password", password)
+	data.Add("remember_me", "on")
+
+	req, err := http.NewRequest("POST", "https://www.strava.com/session", strings.NewReader(data.Encode()))
+	if err != nil {
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		setBrowserCookies(req)
+	}
+
+	return req, err
+}
+
+func extractAuthenticityToken(resp *http.Response) (string, error) {
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("Failed to read body: %w", err)
+	}
+
+	expr, _ := regexp.Compile("name=\"authenticity_token\".*value=\"(.+?)\"")
+	matches := expr.FindStringSubmatch(string(body))
+	if len(matches) < 2 {
+		return "", errors.New("Token not found")
+	}
+
+	return matches[1], nil
+}
+
 func setBrowserCookies(req *http.Request) {
 	if req == nil {
 		return
@@ -132,7 +142,6 @@ func setBrowserCookies(req *http.Request) {
 	randomIndex := rn.Intn(len(userAgents))
 	randomUserAgent := userAgents[randomIndex]
 
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7")
 	req.Header.Set("Accept-Language", "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7")
 	req.Header.Set("Dnt", "1")
