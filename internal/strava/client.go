@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
 	"regexp"
 	"strings"
+	"time"
 )
 
 type StravaClient struct {
@@ -32,14 +34,21 @@ func (client *StravaClient) send(req *http.Request, err error) (*http.Response, 
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
-	} else if resp.StatusCode != http.StatusOK {
+	} else if !(200 <= resp.StatusCode && resp.StatusCode < 300) {
 		return nil, fmt.Errorf("Request '%s' failed with status code %s", req.URL, resp.Status)
 	}
+
 	return resp, nil
 }
 
 func newStravaLoginRequest() (*http.Request, error) {
-	return http.NewRequest("GET", "https://www.strava.com/login", nil)
+	req, err := http.NewRequest("GET", "https://www.strava.com/login", nil)
+	if err != nil {
+		return nil, err
+	}
+	setBrowserCookies(req)
+
+	return req, nil
 }
 
 func newStravaSessionRequest(email string, password string, token string) (*http.Request, error) {
@@ -50,10 +59,12 @@ func newStravaSessionRequest(email string, password string, token string) (*http
 	data.Add("email", email)
 	data.Add("password", password)
 	data.Add("remember_me", "on")
+
 	req, err := http.NewRequest("POST", "https://www.strava.com/session", strings.NewReader(data.Encode()))
 	if err != nil {
-		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		setBrowserCookies(req)
 	}
+
 	return req, err
 }
 
@@ -62,11 +73,13 @@ func extractAuthenticityToken(resp *http.Response) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("Failed to read body: %w", err)
 	}
+
 	expr, _ := regexp.Compile("name=\"authenticity_token\".*value=\"(.+?)\"")
 	matches := expr.FindStringSubmatch(string(body))
 	if len(matches) < 2 {
 		return "", errors.New("Token not found")
 	}
+
 	return matches[1], nil
 }
 
@@ -108,4 +121,29 @@ func (client *StravaClient) AddCookies(req *http.Request) {
 
 func (client *StravaClient) GetTarget() *url.URL {
 	return client.target
+}
+
+func setBrowserCookies(req *http.Request) {
+	if req == nil {
+		return
+	}
+
+	rn := rand.New(rand.NewSource(time.Now().UnixNano()))
+	randomIndex := rn.Intn(len(userAgents))
+	randomUserAgent := userAgents[randomIndex]
+
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7")
+	req.Header.Set("Accept-Language", "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7")
+	req.Header.Set("Dnt", "1")
+	req.Header.Set("Priority", "u=0, i")
+	req.Header.Set("Referer", "https://www.strava.com/login")
+	req.Header.Set("Sec-Ch-Ua", randomUserAgent.SecChUa)
+	req.Header.Set("Sec-Ch-Ua-Mobile", "?0")
+	req.Header.Set("Sec-Ch-Ua-Platform", "\"macOS\"")
+	req.Header.Set("Sec-Fetch-Dest", "document")
+	req.Header.Set("Sec-Fetch-Mode", "navigate")
+	req.Header.Set("Sec-Fetch-Site", "same-origin")
+	req.Header.Set("Upgrade-Insecure-Requests", "1")
+	req.Header.Set("User-Agent", randomUserAgent.UserAgent)
 }

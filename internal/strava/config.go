@@ -12,7 +12,18 @@ type Config struct {
 	Password string
 }
 
-func ParseConfig(path string) (*Config, error) {
+func (c *Config) Validate() error {
+	if c.Email == "" {
+		return fmt.Errorf("Email is required")
+	}
+	if c.Password == "" {
+		return fmt.Errorf("Password is required")
+	}
+
+	return nil
+}
+
+func NewConfigFromFile(path string) (*Config, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("Could not open config file '%s': %w", path, err)
@@ -27,11 +38,25 @@ func ParseConfig(path string) (*Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Could not unmarshal json from config file '%s': %w", path, err)
 	}
-	if config.Email == "" {
-		return nil, fmt.Errorf("Mandatory field 'Email' not found in '%s'", path)
+
+	err = config.Validate()
+	if err != nil {
+		return nil, fmt.Errorf("Invalid config: %w", err)
 	}
-	if config.Password == "" {
-		return nil, fmt.Errorf("Mandatory field 'Password' not found in '%s'", path)
-	}
+
 	return &config, nil
+}
+
+func NewConfig(email, password string) (*Config, error) {
+	config := &Config{
+		Email:    email,
+		Password: password,
+	}
+
+	err := config.Validate()
+	if err != nil {
+		return nil, fmt.Errorf("Invalid config: %w", err)
+	}
+
+	return config, nil
 }

@@ -9,7 +9,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/patrickziegler/strava-heatmap-proxy/internal/strava"
+	"github.com/k0R73z/strava-heatmap-proxy/internal/strava"
 )
 
 type Param struct {
@@ -36,7 +36,7 @@ func getParam() *Param {
 
 func main() {
 	param := getParam()
-	config, err := strava.ParseConfig(*param.Config)
+	config, err := strava.NewConfigFromFile(*param.Config)
 	if err != nil {
 		log.Fatalf("Failed to get configuration: %s", err)
 	}

@@ -11,7 +11,7 @@ You can use the software either as [static file configurator](#using-the-static-
 With [git](https://git-scm.com/downloads), [golang](https://go.dev/) and [make](https://www.gnu.org/software/make/) available on your system, the following steps are sufficient to build and install the binaries `strava-heatmap-auth` and `strava-heatmap-proxy` to the given path `INSTALL_PREFIX`
 
 ```sh
-git clone https://github.com/patrickziegler/strava-heatmap-proxy
+git clone https://github.com/k0R73z/strava-heatmap-proxy
 cd strava-heatmap-proxy
 INSTALL_PREFIX=~/.local/bin make
 ```
