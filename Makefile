@@ -1,12 +1,10 @@
-INSTALL_PREFIX ?= $(shell pwd)/build
-
-BIN := \
-	strava-heatmap-auth \
-	strava-heatmap-proxy \
-	strava-auth
-
-.PHONY: all
-all: $(BIN)
-
 %: ## Build all commands 
-	CGO_ENABLED=0 go build -ldflags "-w"  -o $(INSTALL_PREFIX)/$@ cmd/$@/main.go
+	CGO_ENABLED=0 go build -ldflags "-w"  -o build/$@ cmd/$@/main.go
+
+build-lambda: ## Build strava auth script for AWS Lambda
+	GOOS=linux GOARCH=arm64 go build -ldflags "-w" -tags lambda.norpc -o build/bootstrap cmd/lambda-strava-auth/main.go
+
+package-lambda: ## Zip strava auth script
+	zip -j build/function.zip build/bootstrap
+
+build-and-package-lambda: build-lambda package-lambda
