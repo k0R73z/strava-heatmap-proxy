@@ -9,4 +9,4 @@ BIN := \
 all: $(BIN)
 
 %: ## Build all commands 
-	CGO_ENABLED=0 go build -o $(INSTALL_PREFIX)/$@ cmd/$@/main.go
+	CGO_ENABLED=0 go build -ldflags "-w"  -o $(INSTALL_PREFIX)/$@ cmd/$@/main.go
